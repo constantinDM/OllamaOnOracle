@@ -17,11 +17,8 @@ function App() {
     setMessages(prev => [...prev, { role: 'user', content: input }]);
     setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
-
     try {
-      console.log('Starting request...');
+      console.log('Starting request to:', API_URL);
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -31,8 +28,10 @@ function App() {
         body: JSON.stringify({
           prompt: input
         }),
-        signal: controller.signal
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -47,11 +46,12 @@ function App() {
         const { done, value } = await reader.read();
         
         if (done) {
-          console.log('Stream complete');
+          console.log('Stream complete. Total content length:', fullContent.length);
           break;
         }
 
         const chunk = decoder.decode(value, { stream: true });
+        console.log('Received chunk:', chunk.length, 'bytes');
         buffer += chunk;
 
         const lines = buffer.split('\n\n');
@@ -63,6 +63,7 @@ function App() {
               const data = JSON.parse(line.slice(6));
               if (data.message) {
                 fullContent += data.message;
+                console.log('Processed message:', data.message);
                 setMessages(prev => {
                   const newMessages = [...prev];
                   const lastMessage = newMessages[newMessages.length - 1];
@@ -92,7 +93,6 @@ function App() {
         return newMessages;
       });
     } finally {
-      clearTimeout(timeoutId);
       setIsLoading(false);
       setInput('');
     }
