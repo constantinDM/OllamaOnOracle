@@ -18,64 +18,74 @@ function App() {
     setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
 
     try {
-      console.log('Starting request to:', API_URL);
+      console.log('Starting request...');
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
         },
         body: JSON.stringify({
           prompt: input
         }),
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      let fullContent = '';
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
         
         if (done) {
-          console.log('Stream complete. Total content length:', fullContent.length);
+          console.log('Stream complete:', fullContent);
           break;
         }
 
-        const chunk = decoder.decode(value, { stream: true });
-        console.log('Received chunk:', chunk.length, 'bytes');
-        buffer += chunk;
+        const chunk = decoder.decode(value);
+        console.log('Raw chunk:', chunk);
 
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.message) {
-                fullContent += data.message;
-                console.log('Processed message:', data.message);
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  if (lastMessage && lastMessage.role === 'assistant') {
-                    lastMessage.content = fullContent;
-                    lastMessage.loading = false;
-                  }
-                  return newMessages;
-                });
+        try {
+          // Try parsing the chunk as JSON
+          const data = JSON.parse(chunk);
+          if (data.message) {
+            fullContent += data.message;
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                lastMessage.content = fullContent;
+                lastMessage.loading = false;
               }
-            } catch (e) {
-              console.error('Error parsing chunk:', e, 'Line:', line);
+              return newMessages;
+            });
+          }
+        } catch (e) {
+          console.log('Chunk is not JSON, trying event stream format');
+          // Try parsing as event stream
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.message) {
+                  fullContent += data.message;
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                      lastMessage.content = fullContent;
+                      lastMessage.loading = false;
+                    }
+                    return newMessages;
+                  });
+                }
+              } catch (e) {
+                console.error('Error parsing data line:', e);
+              }
             }
           }
         }
