@@ -18,7 +18,6 @@ function App() {
     setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
 
     try {
-      console.log('Starting request...');
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -33,59 +32,41 @@ function App() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      let fullContent = '';
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
+      let fullContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
         
-        if (done) {
-          console.log('Stream complete:', fullContent);
-          break;
-        }
+        if (done) break;
 
-        const chunk = decoder.decode(value);
-        console.log('Raw chunk:', chunk);
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
 
-        try {
-          // Try parsing the chunk as JSON
-          const data = JSON.parse(chunk);
-          if (data.message) {
-            fullContent += data.message;
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessage = newMessages[newMessages.length - 1];
-              if (lastMessage && lastMessage.role === 'assistant') {
-                lastMessage.content = fullContent;
-                lastMessage.loading = false;
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim() && line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.message) {
+                fullContent += data.message;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = fullContent;
+                    lastMessage.loading = false;
+                  }
+                  return newMessages;
+                });
               }
-              return newMessages;
-            });
-          }
-        } catch (e) {
-          console.log('Chunk is not JSON, trying event stream format');
-          // Try parsing as event stream
-          const lines = chunk.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.message) {
-                  fullContent += data.message;
-                  setMessages(prev => {
-                    const newMessages = [...prev];
-                    const lastMessage = newMessages[newMessages.length - 1];
-                    if (lastMessage && lastMessage.role === 'assistant') {
-                      lastMessage.content = fullContent;
-                      lastMessage.loading = false;
-                    }
-                    return newMessages;
-                  });
-                }
-              } catch (e) {
-                console.error('Error parsing data line:', e);
-              }
+            } catch (e) {
+              // Silently skip parse errors for cleaner console
+              continue;
             }
           }
         }
