@@ -7,13 +7,15 @@ function App() {
   const messagesEndRef = useRef(null);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
 
+    setIsLoading(true);
     setMessages(prev => [...prev, { role: 'user', content: input }]);
-    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+    setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
 
     try {
       console.log('Sending request to:', API_URL);
@@ -47,6 +49,7 @@ function App() {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
                 lastMessage.content += data.message;
+                lastMessage.loading = false;
                 return newMessages;
               });
             } catch (e) {
@@ -58,13 +61,17 @@ function App() {
 
     } catch (error) {
       console.error('Error details:', error);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `Error: ${error.message}. Please try again.` 
-      }]);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        lastMessage.content = `Error: ${error.message}. Please try again.`;
+        lastMessage.loading = false;
+        return newMessages;
+      });
+    } finally {
+      setIsLoading(false);
+      setInput('');
     }
-
-    setInput('');
   };
 
   useEffect(() => {
@@ -89,6 +96,13 @@ function App() {
           {messages.map((message, index) => (
             <div key={index} className={`message ${message.role}`}>
               {message.content}
+              {message.loading && (
+                <div className="loading-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              )}
             </div>
           ))}
           <div ref={messagesEndRef} />
@@ -102,9 +116,17 @@ function App() {
             placeholder="Type your message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            disabled={isLoading}
           />
-          <button type="submit">
-            Send
+          <button type="submit" className={isLoading ? 'loading' : ''} disabled={isLoading}>
+            <span>Send</span>
+            {isLoading && (
+              <div className="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            )}
           </button>
         </form>
       </div>
