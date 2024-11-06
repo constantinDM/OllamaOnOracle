@@ -38,12 +38,13 @@ function App() {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
+      let chunkCount = 0;
 
       while (true) {
         const { done, value } = await reader.read();
         
         if (done) {
-          console.log('Stream complete');
+          console.log('Stream complete, total chunks:', chunkCount);
           break;
         }
 
@@ -59,9 +60,12 @@ function App() {
             try {
               const data = JSON.parse(message.slice(6));
               if (data.message) {
+                chunkCount++;
+                console.log(`Processing chunk ${chunkCount}:`, data.message);
                 fullContent += data.message;
-                // Update UI less frequently to prevent React bottleneck
-                await new Promise(resolve => setTimeout(resolve, 0)); // Let other tasks run
+                
+                // Update UI with a small delay to prevent overwhelming React
+                await new Promise(resolve => setTimeout(resolve, 10));
                 setMessages(prev => {
                   const newMessages = [...prev];
                   const lastMessage = newMessages[newMessages.length - 1];
