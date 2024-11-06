@@ -18,40 +18,46 @@ function App() {
     setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
 
     try {
+      console.log('Starting request to:', API_URL);
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
         },
         body: JSON.stringify({
           prompt: input
         }),
       });
 
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
       let fullContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
         
-        if (done) break;
+        if (done) {
+          console.log('Stream complete:', fullContent);
+          break;
+        }
 
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
+        const chunk = decoder.decode(value);
+        console.log('Received chunk:', chunk);
 
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.trim() && line.startsWith('data: ')) {
+        // Split on double newlines for SSE format
+        const messages = chunk.split('\n\n');
+        
+        for (const message of messages) {
+          if (message.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(message.slice(6));
               if (data.message) {
                 fullContent += data.message;
                 setMessages(prev => {
@@ -65,7 +71,7 @@ function App() {
                 });
               }
             } catch (e) {
-              // Silently skip parse errors for cleaner console
+              console.warn('Parse error:', e);
               continue;
             }
           }
