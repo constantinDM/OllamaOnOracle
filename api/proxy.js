@@ -5,7 +5,8 @@ export default async function handler(req, res) {
   console.log('Proxy request received');
 
   const httpsAgent = new https.Agent({
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    timeout: 60000  // 60 seconds timeout
   });
 
   try {
@@ -17,15 +18,14 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       httpsAgent,
-      responseType: 'stream'
+      responseType: 'stream',
+      timeout: 60000  // 60 seconds timeout
     });
 
-    // Set headers for SSE
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Pipe the response stream
     response.data.pipe(res);
 
   } catch (error) {
