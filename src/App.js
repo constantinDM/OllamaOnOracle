@@ -18,6 +18,7 @@ function App() {
     setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
 
     try {
+      console.log('Starting request...');
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -28,55 +29,50 @@ function App() {
         }),
       });
 
-      // Ensure the response is readable
-      if (!response.body) throw new Error('No response body');
-      
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let fullText = '';
+      let buffer = '';
+      let messageCount = 0;
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('Stream complete. Total messages:', messageCount);
+          break;
+        }
 
-        const text = decoder.decode(value, { stream: true });
-        const lines = text.split('\n');
+        // Decode and buffer the incoming data
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Split on double newlines (SSE format)
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep the last incomplete chunk
 
         for (const line of lines) {
-          if (line.trim() === '') continue;
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              fullText += data.message;
+              messageCount++;
+              console.log('Received chunk:', messageCount, data.message.length);
               
-              // Update the message with the accumulated text
               setMessages(prev => {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
                 if (lastMessage && lastMessage.role === 'assistant') {
-                  lastMessage.content = fullText;
+                  lastMessage.content = (lastMessage.content || '') + data.message;
                   lastMessage.loading = false;
                 }
                 return newMessages;
               });
             } catch (e) {
-              console.error('Error parsing SSE data:', e, line);
+              console.error('Error parsing chunk:', e, line);
             }
           }
         }
       }
 
     } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage) {
-          lastMessage.content = `Error: ${error.message}. Please try again.`;
-          lastMessage.loading = false;
-        }
-        return newMessages;
-      });
+      console.error('Stream error:', error);
     } finally {
       setIsLoading(false);
       setInput('');
