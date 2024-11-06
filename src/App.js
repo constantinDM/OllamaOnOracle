@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
-const API_URL = 'https://152.70.116.73/api/proxy';
+const API_URL = '/api/proxy';
 
 function App() {
   const messagesEndRef = useRef(null);
