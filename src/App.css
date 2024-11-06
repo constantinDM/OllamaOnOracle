@@ -41,6 +41,9 @@
   border-radius: 0.5rem;
   max-width: 80%;
   word-wrap: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  width: fit-content;
 }
 
 .message.user {
@@ -53,6 +56,8 @@
   background-color: #3a3a3a;
   align-self: flex-start;
   margin-right: 20%;
+  max-width: 80%;
+  width: auto;
 }
 
 /* Input container */
