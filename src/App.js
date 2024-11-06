@@ -48,6 +48,9 @@ function App() {
           break;
         }
 
+        // Log the raw chunk data
+        console.log('Raw chunk:', new TextDecoder().decode(value));
+        
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
 
@@ -61,11 +64,14 @@ function App() {
               const data = JSON.parse(message.slice(6));
               if (data.message) {
                 chunkCount++;
-                console.log(`Processing chunk ${chunkCount}:`, data.message);
+                console.log(`Chunk ${chunkCount}:`, {
+                  message: data.message,
+                  currentLength: fullContent.length,
+                  newLength: fullContent.length + data.message.length
+                });
+                
                 fullContent += data.message;
                 
-                // Update UI with a small delay to prevent overwhelming React
-                await new Promise(resolve => setTimeout(resolve, 10));
                 setMessages(prev => {
                   const newMessages = [...prev];
                   const lastMessage = newMessages[newMessages.length - 1];
@@ -77,14 +83,14 @@ function App() {
                 });
               }
             } catch (e) {
-              console.warn('Parse error:', e);
+              console.warn('Parse error:', e, 'in message:', message);
               continue;
             }
           }
         }
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Stream error:', error);
       setMessages(prev => {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
