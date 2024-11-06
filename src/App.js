@@ -42,7 +42,9 @@ function App() {
           break;
         }
 
-        buffer += decoder.decode(value, { stream: true });
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+
         const lines = buffer.split('\n\n');
         buffer = lines.pop() || '';
 
@@ -52,19 +54,30 @@ function App() {
               const data = JSON.parse(line.slice(6));
               messageCount++;
               fullContent += data.message;
-              console.log(`Chunk ${messageCount}, Total length: ${fullContent.length}`);
               
+              if (messageCount % 5 === 0 || done) {
+                console.log(`Batch update ${messageCount}, Length: ${fullContent.length}`);
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = fullContent;
+                    lastMessage.loading = false;
+                  }
+                  return newMessages;
+                });
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
               setMessages(prev => {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
                 if (lastMessage && lastMessage.role === 'assistant') {
-                  lastMessage.content = fullContent;
+                  lastMessage.content += '\n[Error: Connection lost. Please try again.]';
                   lastMessage.loading = false;
                 }
-                return [...newMessages];
+                return newMessages;
               });
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
             }
           }
         }
@@ -72,6 +85,15 @@ function App() {
 
     } catch (error) {
       console.error('Stream error:', error);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage && lastMessage.role === 'assistant') {
+          lastMessage.content += '\n[Error: Connection lost. Please try again.]';
+          lastMessage.loading = false;
+        }
+        return newMessages;
+      });
     } finally {
       setIsLoading(false);
       setInput('');
