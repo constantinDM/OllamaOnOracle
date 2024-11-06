@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
-const API_URL = 'http://152.70.116.73/api/chat';
+const API_URL = 'https://152.70.116.73/api/chat';
 
 function App() {
   const messagesEndRef = useRef(null);
