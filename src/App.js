@@ -38,6 +38,7 @@ function App() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
       let fullContent = '';
 
       while (true) {
@@ -48,14 +49,15 @@ function App() {
           break;
         }
 
-        const chunk = decoder.decode(value);
-        console.log('Received chunk:', chunk);
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
 
         // Split on double newlines for SSE format
-        const messages = chunk.split('\n\n');
-        
+        const messages = buffer.split('\n\n');
+        buffer = messages.pop() || '';
+
         for (const message of messages) {
-          if (message.startsWith('data: ')) {
+          if (message.trim().startsWith('data: ')) {
             try {
               const data = JSON.parse(message.slice(6));
               if (data.message) {
