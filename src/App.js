@@ -55,29 +55,17 @@ function App() {
               messageCount++;
               fullContent += data.message;
               
-              if (messageCount % 5 === 0 || done) {
-                console.log(`Batch update ${messageCount}, Length: ${fullContent.length}`);
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  if (lastMessage && lastMessage.role === 'assistant') {
-                    lastMessage.content = fullContent;
-                    lastMessage.loading = false;
-                  }
-                  return newMessages;
-                });
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
               setMessages(prev => {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
                 if (lastMessage && lastMessage.role === 'assistant') {
-                  lastMessage.content += '\n[Error: Connection lost. Please try again.]';
+                  lastMessage.content = fullContent;
                   lastMessage.loading = false;
                 }
-                return newMessages;
+                return [...newMessages];
               });
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }
