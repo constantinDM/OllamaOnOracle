@@ -23,35 +23,32 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
         },
         body: JSON.stringify({
           prompt: input
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let messageCount = 0;
       let fullContent = '';
-      let lastUpdateTime = Date.now();
-      let chunkCount = 0;
 
       while (true) {
         const { done, value } = await reader.read();
+        
         if (done) {
-          console.log(`Total chunks processed: ${chunkCount}`);
+          console.log('Stream complete');
           break;
         }
 
-        chunkCount++;
-        console.log(`Processing chunk ${chunkCount}, size: ${value.length}`);
-
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
-        const currentTime = Date.now();
-        console.log(`Chunk received. Time since last chunk: ${currentTime - lastUpdateTime}ms`);
-        lastUpdateTime = currentTime;
 
         const lines = buffer.split('\n\n');
         buffer = lines.pop() || '';
@@ -60,39 +57,32 @@ function App() {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              messageCount++;
-              fullContent += data.message;
-              console.log(`Chunk ${messageCount}, Size: ${line.length}, Total length: ${fullContent.length}`);
-              
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                  lastMessage.content = fullContent;
-                  lastMessage.loading = false;
-                }
-                return [...newMessages];
-              });
+              if (data.message) {
+                fullContent += data.message;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = fullContent;
+                    lastMessage.loading = false;
+                  }
+                  return newMessages;
+                });
+              }
             } catch (e) {
               console.error('Error parsing chunk:', e, 'Line:', line);
             }
           }
         }
-
-        // Add small delay to handle backpressure
-        await new Promise(resolve => setTimeout(resolve, 10));
       }
 
     } catch (error) {
-      console.error(`Error after processing ${chunkCount} chunks:`, error);
-      if (error.stack) {
-        console.error('Error stack:', error.stack);
-      }
+      console.error('Error:', error);
       setMessages(prev => {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
-          lastMessage.content += '\n[Error: Connection lost. Please try again.]';
+          lastMessage.content = 'Error: Failed to get response. Please try again.';
           lastMessage.loading = false;
         }
         return newMessages;
