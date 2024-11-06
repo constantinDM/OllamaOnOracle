@@ -35,13 +35,17 @@ function App() {
       let messageCount = 0;
       let fullContent = '';
       let lastUpdateTime = Date.now();
+      let chunkCount = 0;
 
       while (true) {
-        const { value, done } = await reader.read();
+        const { done, value } = await reader.read();
         if (done) {
-          console.log('Stream complete. Total chunks:', messageCount);
+          console.log(`Total chunks processed: ${chunkCount}`);
           break;
         }
+
+        chunkCount++;
+        console.log(`Processing chunk ${chunkCount}, size: ${value.length}`);
 
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
@@ -74,10 +78,13 @@ function App() {
             }
           }
         }
+
+        // Add small delay to handle backpressure
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
 
     } catch (error) {
-      console.error('Stream error:', error);
+      console.error(`Error after processing ${chunkCount} chunks:`, error);
       if (error.stack) {
         console.error('Error stack:', error.stack);
       }
