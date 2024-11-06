@@ -33,6 +33,7 @@ function App() {
       const decoder = new TextDecoder();
       let buffer = '';
       let messageCount = 0;
+      let accumulatedContent = '';
 
       while (true) {
         const { value, done } = await reader.read();
@@ -41,25 +42,23 @@ function App() {
           break;
         }
 
-        // Decode and buffer the incoming data
         buffer += decoder.decode(value, { stream: true });
-        
-        // Split on double newlines (SSE format)
         const lines = buffer.split('\n\n');
-        buffer = lines.pop() || ''; // Keep the last incomplete chunk
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
               messageCount++;
-              console.log('Received chunk:', messageCount, data.message.length);
+              accumulatedContent += data.message;
+              console.log('Accumulated length:', accumulatedContent.length);
               
               setMessages(prev => {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
                 if (lastMessage && lastMessage.role === 'assistant') {
-                  lastMessage.content = (lastMessage.content || '') + data.message;
+                  lastMessage.content = accumulatedContent;
                   lastMessage.loading = false;
                 }
                 return newMessages;
