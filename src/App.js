@@ -74,6 +74,11 @@ function App() {
   return (
     <div className="flex h-screen flex-col">
       <div className="grid-lines"></div>
+      <div className="background-animation">
+        <div className="moving-line"></div>
+        <div className="moving-line"></div>
+        <div className="moving-line"></div>
+      </div>
       <div className="particle"></div>
       <div className="particle"></div>
       <div className="title-bar">
