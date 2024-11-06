@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 const API_URL = '/api/proxy';
-// asdf
+
 function App() {
   const messagesEndRef = useRef(null);
   const [input, setInput] = useState('');
@@ -13,8 +13,6 @@ function App() {
     if (!input.trim()) return;
 
     setMessages(prev => [...prev, { role: 'user', content: input }]);
-
-    // Add a new message for the assistant's response
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
@@ -76,21 +74,8 @@ function App() {
   return (
     <div className="flex h-screen flex-col">
       <div className="grid-lines"></div>
-      <div className="hexagon-container">
-        <div className="hexagon"></div>
-        <div className="hexagon"></div>
-        <div className="hexagon"></div>
-        <div className="hexagon"></div>
-      </div>
       <div className="particle"></div>
       <div className="particle"></div>
-      <div className="particle"></div>
-      <div className="particle"></div>
-      <div className="pulse-circle"></div>
-      <div className="pulse-circle"></div>
-      <div className="bubble"></div>
-      <div className="bubble"></div>
-      <div className="bubble"></div>
       <div className="title-bar">
         Llama 3.2 running on Oracle
       </div>
