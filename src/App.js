@@ -33,12 +33,12 @@ function App() {
       const decoder = new TextDecoder();
       let buffer = '';
       let messageCount = 0;
-      let accumulatedContent = '';
+      let fullContent = '';
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) {
-          console.log('Stream complete. Total messages:', messageCount);
+          console.log('Stream complete. Total chunks:', messageCount);
           break;
         }
 
@@ -51,20 +51,20 @@ function App() {
             try {
               const data = JSON.parse(line.slice(6));
               messageCount++;
-              accumulatedContent += data.message;
-              console.log('Accumulated length:', accumulatedContent.length);
+              fullContent += data.message;
+              console.log(`Chunk ${messageCount}, Total length: ${fullContent.length}`);
               
               setMessages(prev => {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
                 if (lastMessage && lastMessage.role === 'assistant') {
-                  lastMessage.content = accumulatedContent;
+                  lastMessage.content = fullContent;
                   lastMessage.loading = false;
                 }
-                return newMessages;
+                return [...newMessages];
               });
             } catch (e) {
-              console.error('Error parsing chunk:', e, line);
+              console.error('Error parsing chunk:', e);
             }
           }
         }
