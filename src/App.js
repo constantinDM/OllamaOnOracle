@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 const API_URL = '/api/proxy';
-// 
+
 function App() {
   const messagesEndRef = useRef(null);
   const [input, setInput] = useState('');
