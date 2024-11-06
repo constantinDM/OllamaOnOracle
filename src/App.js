@@ -26,7 +26,9 @@ function App() {
         },
         body: JSON.stringify({
           prompt: input
-        })
+        }),
+        mode: 'cors',
+        credentials: 'omit'
       });
       
       const reader = response.body.getReader();
