@@ -30,8 +30,6 @@ function App() {
         }),
       });
 
-      console.log('Response status:', response.status);
-      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -45,16 +43,16 @@ function App() {
         const { done, value } = await reader.read();
         
         if (done) {
-          console.log('Stream complete:', fullContent);
+          console.log('Stream complete');
           break;
         }
 
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
 
-        // Split on double newlines for SSE format
+        // Split on double newlines and process each SSE message
         const messages = buffer.split('\n\n');
-        buffer = messages.pop() || '';
+        buffer = messages.pop() || ''; // Keep the last partial message in the buffer
 
         for (const message of messages) {
           if (message.trim().startsWith('data: ')) {
@@ -62,6 +60,8 @@ function App() {
               const data = JSON.parse(message.slice(6));
               if (data.message) {
                 fullContent += data.message;
+                // Update UI less frequently to prevent React bottleneck
+                await new Promise(resolve => setTimeout(resolve, 0)); // Let other tasks run
                 setMessages(prev => {
                   const newMessages = [...prev];
                   const lastMessage = newMessages[newMessages.length - 1];
@@ -79,7 +79,6 @@ function App() {
           }
         }
       }
-
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => {
