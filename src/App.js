@@ -34,6 +34,7 @@ function App() {
       let buffer = '';
       let messageCount = 0;
       let fullContent = '';
+      let lastUpdateTime = Date.now();
 
       while (true) {
         const { value, done } = await reader.read();
@@ -44,6 +45,9 @@ function App() {
 
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
+        const currentTime = Date.now();
+        console.log(`Chunk received. Time since last chunk: ${currentTime - lastUpdateTime}ms`);
+        lastUpdateTime = currentTime;
 
         const lines = buffer.split('\n\n');
         buffer = lines.pop() || '';
@@ -54,6 +58,7 @@ function App() {
               const data = JSON.parse(line.slice(6));
               messageCount++;
               fullContent += data.message;
+              console.log(`Chunk ${messageCount}, Size: ${line.length}, Total length: ${fullContent.length}`);
               
               setMessages(prev => {
                 const newMessages = [...prev];
@@ -65,7 +70,7 @@ function App() {
                 return [...newMessages];
               });
             } catch (e) {
-              console.error('Error parsing chunk:', e);
+              console.error('Error parsing chunk:', e, 'Line:', line);
             }
           }
         }
@@ -73,6 +78,9 @@ function App() {
 
     } catch (error) {
       console.error('Stream error:', error);
+      if (error.stack) {
+        console.error('Error stack:', error.stack);
+      }
       setMessages(prev => {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
