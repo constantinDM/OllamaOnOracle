@@ -16,9 +16,8 @@ function App() {
     setIsLoading(true);
     setMessages(prev => [...prev, { role: 'user', content: input }]);
     setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
- // asdf
+
     try {
-      console.log('Sending request to:', API_URL);
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -27,45 +26,55 @@ function App() {
         body: JSON.stringify({
           prompt: input
         }),
-        mode: 'cors',
-        credentials: 'omit'
       });
+
+      // Ensure the response is readable
+      if (!response.body) throw new Error('No response body');
       
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let fullText = '';
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const text = decoder.decode(value);
+        const text = decoder.decode(value, { stream: true });
         const lines = text.split('\n');
 
         for (const line of lines) {
+          if (line.trim() === '') continue;
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
+              fullText += data.message;
+              
+              // Update the message with the accumulated text
               setMessages(prev => {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
-                lastMessage.content += data.message;
-                lastMessage.loading = false;
+                if (lastMessage && lastMessage.role === 'assistant') {
+                  lastMessage.content = fullText;
+                  lastMessage.loading = false;
+                }
                 return newMessages;
               });
             } catch (e) {
-              console.error('Error parsing SSE data:', e);
+              console.error('Error parsing SSE data:', e, line);
             }
           }
         }
       }
 
     } catch (error) {
-      console.error('Error details:', error);
+      console.error('Error:', error);
       setMessages(prev => {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
-        lastMessage.content = `Error: ${error.message}. Please try again.`;
-        lastMessage.loading = false;
+        if (lastMessage) {
+          lastMessage.content = `Error: ${error.message}. Please try again.`;
+          lastMessage.loading = false;
+        }
         return newMessages;
       });
     } finally {
