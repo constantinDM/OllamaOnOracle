@@ -1,50 +1,39 @@
-import axios from 'axios';
 import https from 'https';
 
 export default async function handler(req, res) {
-  console.log('Proxy request received with body:', req.body);
+  console.log('Proxy request received');
 
-  const httpsAgent = new https.Agent({
-    rejectUnauthorized: false,
-    timeout: 60000
+  const options = {
+    hostname: '152.70.116.73',
+    port: 443,
+    path: '/api/chat',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    rejectUnauthorized: false
+  };
+
+  const proxyReq = https.request(options, (proxyRes) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    proxyRes.on('data', (chunk) => {
+      res.write(chunk);
+    });
+
+    proxyRes.on('end', () => {
+      res.end();
+    });
   });
 
-  try {
-    console.log('Making request to Oracle server...');
-    
-    const response = await axios({
-      method: 'post',
-      url: 'https://152.70.116.73/api/chat',
-      data: req.body,
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      httpsAgent,
-      timeout: 60000
-    });
+  proxyReq.on('error', (error) => {
+    console.error('Proxy error:', error);
+    res.status(500).json({ error: error.message });
+  });
 
-    console.log('Response received:', response.status);
-    console.log('Response headers:', response.headers);
-
-    // Send response directly without streaming
-    res.status(200).json(response.data);
-
-  } catch (error) {
-    console.error('Detailed proxy error:', {
-      message: error.message,
-      code: error.code,
-      response: error.response?.data,
-      status: error.response?.status,
-      stack: error.stack
-    });
-    
-    res.status(500).json({ 
-      error: error.message,
-      details: {
-        code: error.code,
-        response: error.response?.data,
-        status: error.response?.status
-      }
-    });
-  }
+  // Write the request body
+  proxyReq.write(JSON.stringify(req.body));
+  proxyReq.end();
 } 
