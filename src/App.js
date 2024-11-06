@@ -16,7 +16,7 @@ function App() {
     setIsLoading(true);
     setMessages(prev => [...prev, { role: 'user', content: input }]);
     setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
-// 
+ 
     try {
       console.log('Sending request to:', API_URL);
       const response = await fetch(API_URL, {
