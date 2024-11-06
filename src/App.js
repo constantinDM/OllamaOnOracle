@@ -17,6 +17,9 @@ function App() {
     setMessages(prev => [...prev, { role: 'user', content: input }]);
     setMessages(prev => [...prev, { role: 'assistant', content: '', loading: true }]);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+
     try {
       console.log('Starting request...');
       const response = await fetch(API_URL, {
@@ -28,6 +31,7 @@ function App() {
         body: JSON.stringify({
           prompt: input
         }),
+        signal: controller.signal
       });
 
       if (!response.ok) {
@@ -82,12 +86,13 @@ function App() {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
-          lastMessage.content = 'Error: Failed to get response. Please try again.';
+          lastMessage.content = `Error: ${error.message}. Please try again.`;
           lastMessage.loading = false;
         }
         return newMessages;
       });
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
       setInput('');
     }
